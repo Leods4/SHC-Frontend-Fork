@@ -1,55 +1,49 @@
 // js/utils.js
 
-// =======================================================
-// 1. CARREGAMENTO DO MOCK (Prioritário)
-// =======================================================
-// Verifica se estamos rodando localmente ou no servidor
-// Se o script do mock ainda não existe, cria ele.
-if (!document.querySelector('script[src="js/mock-api.js"]')) {
-    const scriptMock = document.createElement('script');
-    scriptMock.src = 'js/mock-api.js';
-    scriptMock.async = false; // Importante: Força o navegador a esperar esse script
-    document.head.prepend(scriptMock); // Coloca no topo do head
-}
+
+// --- INÍCIO DO CÓDIGO PARA CARREGAR O MOCK ---
+// Verifica se o arquivo mock existe e o carrega dinamicamente
+const scriptMock = document.createElement('script');
+scriptMock.src = 'js/mock-api.js';
+// Garante que o mock carregue antes da execução dos outros scripts da página
+document.head.appendChild(scriptMock); 
+// --- FIM ---
 
 // =======================================================
-// 2. VARIÁVEIS GLOBAIS
+// VARIÁVEIS GLOBAIS
 // =======================================================
-// MUDANÇA: Usamos uma URL HTTPS falsa para evitar erro de "Mixed Content" no Render
-const API_BASE_URL = 'https://api-ficticia.shc.com'; 
-
+const API_BASE_URL = 'http://localhost:8000'; 
 const authToken = localStorage.getItem('authToken');
 const loggedInUser = JSON.parse(localStorage.getItem('userData') || '{}');
-
-// =======================================================
-// 3. FUNÇÕES UTILITÁRIAS
 // =======================================================
 
 function verificarAutenticacao() {
-    // Não verifica na tela de login
-    if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.href.endsWith('/')) {
-        return;
-    }
     if (!authToken) {
-        window.location.href = 'index.html';
+        if (window.location.pathname.endsWith('index.html') === false) {
+            window.location.href = 'index.html';
+        }
     }
 }
-// Pequeno delay para garantir que o Mock sobrescreva o fetch antes da verificação
-setTimeout(verificarAutenticacao, 100);
+verificarAutenticacao();
 
 function getStatusInfo(status) {
     switch (status) {
-        case 'APROVADO': return { className: 'status-aprovado', text: 'Aprovado' };
-        case 'REPROVADO': return { className: 'status-reprovado', text: 'Reprovado' };
-        case 'APROVADO_COM_RESSALVAS': return { className: 'status-ressalva', text: 'Ressalvas' };
-        default: return { className: 'status-entregue', text: 'Entregue' }; 
+        case 'APROVADO':
+            return { className: 'status-aprovado', text: 'Aprovado' };
+        case 'REPROVADO':
+            return { className: 'status-reprovado', text: 'Reprovado' };
+        case 'APROVADO_COM_RESSALVAS':
+            return { className: 'status-ressalva', text: 'Aprovado com Ressalvas' };
+        case 'ENTREGUE':
+        default:
+            // MUDANÇA DE "Pendente" para "Entregue" (como você solicitou)
+            return { className: 'status-entregue', text: 'Entregue' }; 
     }
 }
 
 function setupAccordion() {
     const accordionHeaders = document.querySelectorAll('.accordion-header');
     accordionHeaders.forEach(header => {
-        // Remove clones antigos para evitar duplicação de eventos
         const newHeader = header.cloneNode(true);
         header.parentNode.replaceChild(newHeader, header);
         
@@ -75,50 +69,76 @@ function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     const iconClass = type === 'success' ? 'fa-check-circle' : 'fa-times-circle';
-    toast.innerHTML = `<i class="fas ${iconClass} toast-icon"></i><span class="toast-message">${message}</span>`;
+    toast.innerHTML = `
+        <i class="fas ${iconClass} toast-icon"></i>
+        <span class="toast-message">${message}</span>
+    `;
     toastContainer.appendChild(toast);
-    setTimeout(() => toast.remove(), 5000);
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
 }
 
+// =======================================================
+// NOVA FUNÇÃO ADICIONADA
+// =======================================================
+/**
+ * Inicializa todos os dropdowns customizados da página.
+ * @param {HTMLElement} [wrapper] - O wrapper específico para inicializar (opcional).
+ */
 function setupCustomSelect(wrapper) {
     const trigger = wrapper.querySelector('.custom-select-trigger');
     const optionsContainer = wrapper.querySelector('.custom-options');
     const hiddenSelect = wrapper.previousElementSibling;
     const triggerSpan = trigger.querySelector('span');
+    
+    // Pega as opções DESTE container
     const customOptions = optionsContainer.querySelectorAll('.custom-option');
     
+    // CORREÇÃO: Verifica se o evento de click já foi adicionado ao trigger
+    // Isso evita o bug de "abrir e fechar instantaneamente" se a função for chamada 2x
     if (!trigger.dataset.hasListener) {
         trigger.addEventListener('click', (e) => {
-            e.stopPropagation();
+            e.stopPropagation(); // Impede que o 'document' feche imediatamente
             wrapper.classList.toggle('open');
         });
-        trigger.dataset.hasListener = 'true';
+        trigger.dataset.hasListener = 'true'; // Marca como configurado
     }
 
+    // Evento para selecionar uma opção (Estes precisam ser readicionados sempre que o HTML interno mudar)
     customOptions.forEach(option => {
+        // Removemos listeners antigos clonando o nó (opcional, mas boa prática para garbage collection em SPAs)
+        // Aqui, simplificaremos apenas adicionando o evento, pois o innerHTML geralmente limpa os antigos.
         option.addEventListener('click', (e) => {
             e.stopPropagation(); 
             triggerSpan.textContent = option.textContent;
             hiddenSelect.value = option.dataset.value;
             wrapper.classList.remove('open');
+            // Dispara um evento de 'change' no select escondido
             hiddenSelect.dispatchEvent(new Event('change'));
         });
     });
 }
 
+// =======================================================
+// NOVA FUNÇÃO ADICIONADA
+// =======================================================
+/**
+ * Inicializa todos os inputs de upload de arquivo da página.
+ */
 function setupFileInputs() {
     document.querySelectorAll('.file-upload-wrapper').forEach(wrapper => {
         const fileInput = wrapper.querySelector('input[type="file"]');
         const fileUploadText = wrapper.querySelector('.file-upload-text');
         const fileNameSpan = wrapper.querySelector('#file-name');
 
-        if (!fileInput) return;
+        if (!fileInput) return; // Pula se não for um wrapper de upload
 
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
                 const fileName = fileInput.files[0].name;
                 if(fileUploadText) fileUploadText.style.display = 'none';
-                if(fileNameSpan) fileNameSpan.innerHTML = `<span class="label">Arquivo:</span> <span class="name">${fileName}</span>`;
+                if(fileNameSpan) fileNameSpan.innerHTML = `<span class="label">Arquivo selecionado:</span><span class="name">${fileName}</span>`;
             } else {
                 if(fileUploadText) fileUploadText.style.display = 'block'; 
                 if(fileNameSpan) fileNameSpan.innerHTML = '';
@@ -127,10 +147,18 @@ function setupFileInputs() {
     });
 }
 
+
+// =======================================================
+// INICIALIZAÇÃO GLOBAL
+// =======================================================
+// Fecha os dropdowns se clicar em qualquer outro lugar
 document.addEventListener('click', (e) => {
     document.querySelectorAll('.custom-select-wrapper').forEach(wrapper => {
-        if (!wrapper.contains(e.target)) wrapper.classList.remove('open');
+        if (!wrapper.contains(e.target)) {
+            wrapper.classList.remove('open');
+        }
     });
 });
 
+// Inicializa os inputs de arquivo
 document.addEventListener('DOMContentLoaded', setupFileInputs);

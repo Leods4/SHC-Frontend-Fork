@@ -100,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
+                        'ngrok-skip-browser-warning': 'true' // <--- ADICIONADO PARA BURLAR O AVISO DO NGROK
                     },
                     body: JSON.stringify(data),
                 });

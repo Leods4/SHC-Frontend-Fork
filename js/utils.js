@@ -3,7 +3,7 @@
 // =======================================================
 // VARIÁVEIS GLOBAIS
 // =======================================================
-const API_BASE_URL = 'http://localhost:8000'; 
+const API_BASE_URL = 'https://panoramic-figure-mushroom.ngrok-free.dev'; 
 const authToken = localStorage.getItem('authToken');
 const loggedInUser = JSON.parse(localStorage.getItem('userData') || '{}');
 // =======================================================
